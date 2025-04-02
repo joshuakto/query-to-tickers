@@ -12,7 +12,7 @@ import { extractTickers } from "@/lib/extract-tickers"
 import { Loader2 } from "lucide-react"
 import TickerResults from "./ticker-results"
 import type { Geography, Language, TickerGroup } from "@/lib/types"
-import { loadStocksWithRetry } from "@/lib/stock-cache"
+import { loadStocksWithRetry, loadStocksFromCache } from "@/lib/stock-cache"
 import { TickerDebugView } from "@/app/components/TickerDebugView"
 
 export default function StockTickerIdentifier() {
@@ -55,6 +55,12 @@ export default function StockTickerIdentifier() {
         const stocks = await loadStocksWithRetry()
         
         setIsCacheLoaded(!!stocks)
+        
+        // If we haven't loaded any stocks, show error state
+        if (!stocks) {
+          console.warn("Failed to load stock database on initial load")
+          // Here we could display a user-visible error or warning
+        }
       } catch (err) {
         console.error("Error initializing cache:", err)
         // Even if there's an error, we'll still consider the cache checked
@@ -82,6 +88,15 @@ export default function StockTickerIdentifier() {
     setError(null)
 
     try {
+      // Check if we need to load the database before processing
+      const cachedStocks = loadStocksFromCache()
+      if (!cachedStocks) {
+        console.log("No stock database found when extracting tickers, attempting to load")
+        setIsCacheLoading(true)
+        await loadStocksWithRetry(3, 1000, true) // Force a refresh with 3 retries
+        setIsCacheLoading(false)
+      }
+      
       console.log(
         "Submitting query:",
         query,

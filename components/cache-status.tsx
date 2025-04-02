@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Loader2, RefreshCw, HardDrive, MemoryStickIcon as Memory } from "lucide-react"
+import { Loader2, RefreshCw, HardDrive, MemoryStickIcon as Memory, AlertCircle } from "lucide-react"
 import { refreshStockData } from "@/lib/match-stock-symbols"
-import { getCacheStatus } from "@/lib/stock-cache"
+import { getCacheStatus, hasAttemptedAutoRefresh } from "@/lib/stock-cache"
 import type { CacheStatus } from "@/lib/types"
 
 interface CacheStatusIndicatorProps {
@@ -22,11 +22,13 @@ export default function CacheStatusIndicator({ isLoading }: CacheStatusIndicator
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
+  const [hasTriedAutoRefresh, setHasTriedAutoRefresh] = useState(false)
 
   // Get cache status only on client-side
   useEffect(() => {
     try {
       setStatus(getCacheStatus())
+      setHasTriedAutoRefresh(hasAttemptedAutoRefresh())
     } catch (error) {
       console.error("Error getting initial cache status:", error)
     }
@@ -37,6 +39,7 @@ export default function CacheStatusIndicator({ isLoading }: CacheStatusIndicator
     const updateStatus = () => {
       try {
         setStatus(getCacheStatus())
+        setHasTriedAutoRefresh(hasAttemptedAutoRefresh())
       } catch (error) {
         console.error("Error updating cache status:", error)
       }
@@ -66,6 +69,23 @@ export default function CacheStatusIndicator({ isLoading }: CacheStatusIndicator
       <div className="flex items-center text-xs text-muted-foreground">
         <Loader2 className="h-3 w-3 mr-1 animate-spin" />
         <span>Loading...</span>
+      </div>
+    );
+  }
+
+  // Display no cache but attempted to load
+  if (!status.isCached && hasTriedAutoRefresh) {
+    return (
+      <div className="flex items-center text-xs text-amber-500">
+        <AlertCircle className="h-3 w-3 mr-1" />
+        <span className="mr-2">Database not loaded</span>
+        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full" onClick={handleRefresh} disabled={isRefreshing}>
+          {isRefreshing ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3 w-3" />
+          )}
+        </Button>
       </div>
     );
   }

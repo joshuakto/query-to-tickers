@@ -159,9 +159,25 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
     'NYSE': 1,
     'NASDAQ': 2,
     'HKEX': 3,
+    'HKSE': 3, // Add HKSE with same rank as HKEX
     'LSE': 4,
     'SSE': 5,
-    'SZSE': 6
+    'SHH': 5, // Add SHH with same rank as SSE
+    'SS': 5,  // Add SS with same rank as SSE
+    'SZSE': 6,
+    'SZ': 6   // Add SZ with same rank as SZSE
+  };
+
+  // Helper function to get market cap rank with logging
+  const getMarketCapRank = (stock: Stock): number => {
+    const rank = marketCapRank[stock.exchangeShortName] || 999; // Default to low priority
+    
+    // Log if this is Apple or a high-profile stock for debugging
+    if (stock.name.toLowerCase().includes('apple') || stock.symbol === 'AAPL') {
+      console.log(`Market cap rank for ${stock.symbol} (${stock.exchangeShortName}): ${rank}`);
+    }
+    
+    return rank;
   };
   
   // If no entities, just use geography-based selection
@@ -367,19 +383,74 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
     
     // If geography is global, sort by market capitalization
     if (geography === "global" || preferredExchanges.length === 0) {
+      // Special handling for well-known stocks like Apple to ensure they use the primary market
+      const primarySymbols: Record<string, string> = {
+        'Apple': 'AAPL',      // NYSE Apple
+        'Microsoft': 'MSFT',  // NASDAQ Microsoft
+        'Amazon': 'AMZN',     // NASDAQ Amazon
+        'Google': 'GOOGL',    // NASDAQ Google/Alphabet
+        'Meta': 'META',       // NASDAQ Meta/Facebook
+        'Tesla': 'TSLA',      // NASDAQ Tesla
+        'Alibaba': 'BABA'     // NYSE Alibaba
+      };
+      
+      // Check if this entity is a well-known stock with a preferred symbol
+      const preferredSymbol = primarySymbols[entity.name] || 
+                             (entity.name.toLowerCase() === 'apple' ? 'AAPL' : null);
+      
+      if (preferredSymbol) {
+        // Find if we have an exact match for the preferred symbol
+        const exactMatch = matchingStocks.find(s => 
+          s.symbol === preferredSymbol || 
+          s.symbol.startsWith(preferredSymbol + '.')
+        );
+        
+        if (exactMatch) {
+          console.log(`Using preferred symbol ${preferredSymbol} for ${entity.name}`);
+          const ticker = exactMatch.symbol;
+          prioritizedTickers.push(ticker);
+          tickerToEntityMap.set(ticker, entity);
+          
+          // Update debug info
+          debugInfo.ticker = ticker;
+          debugInfo.selectionReason = `Well-known stock with preferred symbol`;
+          tickerDebugMap.set(ticker, debugInfo);
+          continue;
+        }
+      }
+      
+      // Enhanced sorting for global mode
       const sortedByMarketCap = [...matchingStocks].sort((a, b) => {
-        const aMarketCapRank = marketCapRank[a.exchangeShortName] || 0;
-        const bMarketCapRank = marketCapRank[b.exchangeShortName] || 0;
+        // 1. Exact name matches come first
+        const aNameExact = a.name.toLowerCase() === normalizedName;
+        const bNameExact = b.name.toLowerCase() === normalizedName;
+        
+        if (aNameExact && !bNameExact) return -1;
+        if (!aNameExact && bNameExact) return 1;
+        
+        // 2. Primary market (NYSE, NASDAQ) stocks come first
+        const aPrimaryMarket = a.symbol.indexOf('.') === -1; // No dots usually means US market
+        const bPrimaryMarket = b.symbol.indexOf('.') === -1;
+        
+        if (aPrimaryMarket && !bPrimaryMarket) return -1;
+        if (!aPrimaryMarket && bPrimaryMarket) return 1;
+        
+        // 3. Sort by market cap rank
+        const aMarketCapRank = getMarketCapRank(a);
+        const bMarketCapRank = getMarketCapRank(b);
         return aMarketCapRank - bMarketCapRank;
       });
+      
       const ticker = sortedByMarketCap[0].symbol;
       console.log(`Using market cap sorted match for ${entity.name}: ${ticker} (global setting)`);
+      console.log(`All matches in order:`, sortedByMarketCap.map(s => `${s.symbol} (${s.exchangeShortName})`));
+      
       prioritizedTickers.push(ticker);
       tickerToEntityMap.set(ticker, entity);
       
       // Update debug info
       debugInfo.ticker = ticker;
-      debugInfo.selectionReason = `Global setting, sorted by market cap`;
+      debugInfo.selectionReason = `Global setting, sorted by market cap and relevance`;
       tickerDebugMap.set(ticker, debugInfo);
       continue;
     }

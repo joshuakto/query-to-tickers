@@ -237,13 +237,16 @@ function splitIntoChunks(data: MinimalStock[]): MinimalStock[][] {
  * @param retryDelay Delay between retries in milliseconds
  */
 let loadingPromise: Promise<EnhancedStock[] | null> | null = null;
+let attemptedAutoRefresh = false;
 
 export async function loadStocksWithRetry(
   maxRetries = 3, 
-  retryDelay = 1000
+  retryDelay = 1000,
+  forceRefresh = false
 ): Promise<EnhancedStock[] | null> {
   // If already loading, return the existing promise
-  if (loadingPromise) {
+  if (loadingPromise && !forceRefresh) {
+    console.log("Already loading stocks, returning existing promise");
     return loadingPromise;
   }
   
@@ -253,14 +256,16 @@ export async function loadStocksWithRetry(
     
     // First try to load from memory/localStorage cache
     result = loadStocksFromCache();
-    if (result) {
+    if (result && !forceRefresh) {
       console.log("Successfully loaded stocks from cache");
       resolve(result);
       loadingPromise = null;
       return;
     }
     
-    // If cache failed, try to refresh from API with retries
+    // If no cache or force refresh requested, try to refresh from API with retries
+    console.log(forceRefresh ? "Force refresh requested" : "No cache found, trying to refresh");
+    
     while (retries < maxRetries) {
       try {
         console.log(`Attempting to refresh stock data (attempt ${retries + 1}/${maxRetries})...`);
@@ -270,6 +275,7 @@ export async function loadStocksWithRetry(
         result = loadStocksFromCache();
         if (result) {
           console.log(`Successfully refreshed stock data on attempt ${retries + 1}`);
+          attemptedAutoRefresh = true;
           resolve(result);
           loadingPromise = null;
           return;
@@ -288,6 +294,7 @@ export async function loadStocksWithRetry(
     }
     
     console.error(`Failed to load stock data after ${maxRetries} attempts`);
+    attemptedAutoRefresh = true;
     resolve(null);
     loadingPromise = null;
   });
@@ -529,5 +536,12 @@ export function getCacheStatus(): {
 
     return { isCached: false, timestamp: null, stockCount: null, cacheAge: null, isMemoryOnly: false }
   }
+}
+
+/**
+ * Check if an auto-refresh has been attempted
+ */
+export function hasAttemptedAutoRefresh(): boolean {
+  return attemptedAutoRefresh;
 }
 
