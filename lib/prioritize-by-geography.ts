@@ -384,43 +384,98 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
     // If geography is global, sort by market capitalization
     if (geography === "global" || preferredExchanges.length === 0) {
       // Special handling for well-known stocks like Apple to ensure they use the primary market
-      const primarySymbols: Record<string, string> = {
-        'Apple': 'AAPL',      // NYSE Apple
-        'Microsoft': 'MSFT',  // NASDAQ Microsoft
-        'Amazon': 'AMZN',     // NASDAQ Amazon
-        'Google': 'GOOGL',    // NASDAQ Google/Alphabet
-        'Meta': 'META',       // NASDAQ Meta/Facebook
-        'Tesla': 'TSLA',      // NASDAQ Tesla
-        'Alibaba': 'BABA'     // NYSE Alibaba
-      };
+      // const primarySymbols: Record<string, string> = {
+      //   'Apple': 'AAPL',      // NYSE Apple
+      //   'Microsoft': 'MSFT',  // NASDAQ Microsoft
+      //   'Amazon': 'AMZN',     // NASDAQ Amazon
+      //   'Google': 'GOOGL',    // NASDAQ Google/Alphabet
+      //   'Meta': 'META',       // NASDAQ Meta/Facebook
+      //   'Tesla': 'TSLA',      // NASDAQ Tesla
+      //   'Alibaba': 'BABA',    // NYSE Alibaba
+      //   'Facebook': 'META'    // Meta/Facebook (for older queries)
+      // };
       
       // Check if this entity is a well-known stock with a preferred symbol
-      const preferredSymbol = primarySymbols[entity.name] || 
-                             (entity.name.toLowerCase() === 'apple' ? 'AAPL' : null);
+      // const preferredSymbol = primarySymbols[entity.name] || 
+      //                        (entity.name.toLowerCase() === 'apple' ? 'AAPL' : null);
       
-      if (preferredSymbol) {
-        // Find if we have an exact match for the preferred symbol
-        const exactMatch = matchingStocks.find(s => 
-          s.symbol === preferredSymbol || 
-          s.symbol.startsWith(preferredSymbol + '.')
-        );
+      // if (preferredSymbol) {
+      //   // Find if we have an exact match for the preferred symbol
+      //   const exactMatch = matchingStocks.find(s => 
+      //     s.symbol === preferredSymbol || 
+      //     s.symbol.startsWith(preferredSymbol + '.')
+      //   );
         
-        if (exactMatch) {
-          console.log(`Using preferred symbol ${preferredSymbol} for ${entity.name}`);
-          const ticker = exactMatch.symbol;
-          prioritizedTickers.push(ticker);
-          tickerToEntityMap.set(ticker, entity);
+      //   if (exactMatch) {
+      //     console.log(`Using preferred symbol ${preferredSymbol} for ${entity.name}`);
+      //     const ticker = exactMatch.symbol;
+      //     prioritizedTickers.push(ticker);
+      //     tickerToEntityMap.set(ticker, entity);
           
-          // Update debug info
-          debugInfo.ticker = ticker;
-          debugInfo.selectionReason = `Well-known stock with preferred symbol`;
-          tickerDebugMap.set(ticker, debugInfo);
-          continue;
+      //     // Update debug info
+      //     debugInfo.ticker = ticker;
+      //     debugInfo.selectionReason = `Well-known stock with preferred symbol`;
+      //     tickerDebugMap.set(ticker, debugInfo);
+      //     continue;
+      //   }
+      // }
+      
+      // Calculate match scores for more consistent ordering
+      const globalMatchScores = new Map<Stock, number>();
+      
+      matchingStocks.forEach(stock => {
+        let score = 0;
+        const stockName = stock.name.toLowerCase();
+        
+        // Name match scoring (same as fallback logic)
+        if (stockName === normalizedName) {
+          score += 10000; // Exact match
+        } else if (stockName.startsWith(normalizedName + ' ')) {
+          score += 5000; // Starts with name
+        } else if (new RegExp(`\\b${normalizedName}\\b`).test(stockName)) {
+          score += 3000; // Word boundary match
+        } else if (stockName.includes(normalizedName)) {
+          score += 1000; // Contains name
         }
-      }
+        
+        // Prefer primary listings with no suffix
+        if (stock.symbol.indexOf('.') === -1) {
+          score += 3000;
+        }
+        
+        // Market cap ranking points
+        const marketCapRank = getMarketCapRank(stock);
+        // Invert and scale the market cap rank (lower rank = higher score)
+        score += (1000 - marketCapRank * 100);
+        
+        // Penalize derivative products
+        if (stockName.includes('etf') || 
+            stockName.includes('etp') || 
+            stockName.includes('tracker') ||
+            stockName.includes('short') ||
+            stockName.includes('long') ||
+            stockName.includes('-1x') ||
+            stockName.includes('-2x') ||
+            stockName.includes('-3x')) {
+          score -= 5000;
+        }
+        
+        globalMatchScores.set(stock, score);
+      });
       
       // Enhanced sorting for global mode
       const sortedByMarketCap = [...matchingStocks].sort((a, b) => {
+        // Get the scores
+        const aScore = globalMatchScores.get(a) || 0;
+        const bScore = globalMatchScores.get(b) || 0;
+        
+        // Sort by score first
+        if (aScore !== bScore) {
+          return bScore - aScore; // Higher score first
+        }
+        
+        // If scores are equal, additional criteria:
+        
         // 1. Exact name matches come first
         const aNameExact = a.name.toLowerCase() === normalizedName;
         const bNameExact = b.name.toLowerCase() === normalizedName;
@@ -443,14 +498,16 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
       
       const ticker = sortedByMarketCap[0].symbol;
       console.log(`Using market cap sorted match for ${entity.name}: ${ticker} (global setting)`);
-      console.log(`All matches in order:`, sortedByMarketCap.map(s => `${s.symbol} (${s.exchangeShortName})`));
+      console.log(`Top 5 matches with scores:`, sortedByMarketCap.slice(0, 5).map(s => 
+        `${s.symbol} (${s.exchangeShortName}): score ${globalMatchScores.get(s) || 0}`
+      ));
       
       prioritizedTickers.push(ticker);
       tickerToEntityMap.set(ticker, entity);
       
       // Update debug info
       debugInfo.ticker = ticker;
-      debugInfo.selectionReason = `Global setting, sorted by market cap and relevance`;
+      debugInfo.selectionReason = `Global setting, sorted by match quality and market cap`;
       tickerDebugMap.set(ticker, debugInfo);
       continue;
     }
@@ -540,8 +597,94 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
         console.log(`- ${stock.symbol} (${stock.exchangeShortName}): ${stock.name}`);
       });
       
-      // Improved intelligent sorting algorithm
+      // Calculating scores for matching quality - this ensures consistent ordering
+      const matchScores = new Map<Stock, number>();
+      
+      matchingStocks.forEach(stock => {
+        let score = 0;
+        const stockName = stock.name.toLowerCase();
+        const stockSymbol = stock.symbol.toLowerCase();
+        
+        // Exact name match gets highest priority (e.g., "Apple Inc." for "Apple")
+        if (stockName === normalizedName) {
+          score += 10000;
+        }
+        // Name starts with the entity name (e.g., "Apple Corp" for "Apple")
+        else if (stockName.startsWith(normalizedName + ' ')) {
+          score += 5000;
+        }
+        // Word boundary match (e.g., "Big Apple Inc" for "Apple")
+        else if (new RegExp(`\\b${normalizedName}\\b`).test(stockName)) {
+          score += 3000;
+        }
+        // Name contains entity name
+        else if (stockName.includes(normalizedName)) {
+          score += 1000;
+        }
+        
+        // Check if normalizedName is a word in the stock name (tokenized)
+        const nameWords = stockName.split(/\s+/);
+        if (nameWords.includes(normalizedName)) {
+          score += 500;
+        }
+        
+        // Exact symbol match gets very high priority
+        if (stockSymbol === normalizedName) {
+          score += 8000;
+        }
+        // Symbol starts with entity name (e.g., AAPL for Apple)
+        else if (stockSymbol.startsWith(normalizedName.substring(0, 2))) {
+          score += 2000;
+        }
+        
+        // Special cases for well-known stocks
+        // const wellKnownSymbols: Record<string, string[]> = {
+        //   'apple': ['AAPL'],
+        //   'microsoft': ['MSFT'],
+        //   'google': ['GOOGL', 'GOOG'],
+        //   'amazon': ['AMZN'],
+        //   'facebook': ['META'],
+        //   'tesla': ['TSLA'],
+        //   'alibaba': ['BABA']
+        // };
+        
+        // const wellKnownMatches = wellKnownSymbols[normalizedName] || [];
+        // if (wellKnownMatches.includes(stock.symbol)) {
+        //   score += 15000; // Give highest priority to well-known symbols
+        // }
+        
+        // Boost primary exchanges
+        if (stock.exchangeShortName === 'NYSE' || stock.exchangeShortName === 'NASDAQ') {
+          score += 500;
+        }
+        
+        // Penalize obvious poor matches
+        if (stock.name.toLowerCase().includes('tracker') || 
+            stock.name.toLowerCase().includes('-1x') || 
+            stock.name.toLowerCase().includes('-2x') ||
+            stock.name.toLowerCase().includes('-3x') ||
+            stock.name.toLowerCase().includes('short') ||
+            stock.name.toLowerCase().includes('etf') ||
+            stock.name.toLowerCase().includes('etp')) {
+          score -= 1000;
+        }
+        
+        // Assign the score
+        matchScores.set(stock, score);
+      });
+      
+      // Improved intelligent sorting algorithm that is more stable
       const sortedMatches = [...matchingStocks].sort((a, b) => {
+        // Sort by match score for more consistent ordering
+        const aScore = matchScores.get(a) || 0;
+        const bScore = matchScores.get(b) || 0;
+        
+        if (aScore !== bScore) {
+          return bScore - aScore; // Higher score first
+        }
+        
+        // If scores are equal, use additional criteria
+        
         // 1. Prefer exact name matches
         const aNameExact = a.name.toLowerCase() === normalizedName;
         const bNameExact = b.name.toLowerCase() === normalizedName;
@@ -549,7 +692,7 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
         if (aNameExact && !bNameExact) return -1;
         if (!aNameExact && bNameExact) return 1;
         
-        // 3. Prefer listings matching the selected geography
+        // 2. Prefer listings matching the selected geography
         if (geography === 'hk') {
           const aIsHK = a.symbol.endsWith('.HK');
           const bIsHK = b.symbol.endsWith('.HK');
@@ -567,7 +710,7 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
           if (!aIsChina && bIsChina) return 1;
         }
         
-        // 4. Prefer primary markets over secondary listings
+        // 3. Prefer primary markets over secondary listings
         const primaryMarkets: Record<string, number> = {
           'NYSE': 3,
           'NASDAQ': 3,
@@ -585,18 +728,21 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
           return bMarketPriority - aMarketPriority;
         }
         
-        // 5. Prefer shorter symbols (often primary listings)
+        // 4. For same exchange priority, use symbol length (shorter is often primary)
         return a.symbol.length - b.symbol.length;
       });
       
       const ticker = sortedMatches[0].symbol;
-      console.log(`Selected best match using smart prioritization: ${ticker} (${sortedMatches[0].exchangeShortName})`);
+      const matchScore = matchScores.get(sortedMatches[0]) || 0;
+      console.log(`Selected best match using smart prioritization: ${ticker} (${sortedMatches[0].exchangeShortName}) with score ${matchScore}`);
+      console.log(`Top 5 matches with scores:`, sortedMatches.slice(0, 5).map(s => `${s.symbol} (${s.exchangeShortName}): score ${matchScores.get(s) || 0}`));
+      
       prioritizedTickers.push(ticker);
       tickerToEntityMap.set(ticker, entity);
       
       // Update debug info
       debugInfo.ticker = ticker;
-      debugInfo.selectionReason = `Smart fallback prioritization based on name, symbol and exchange`;
+      debugInfo.selectionReason = `Smart fallback prioritization with score ${matchScore}`;
       tickerDebugMap.set(ticker, debugInfo);
     } else {
       const ticker = matchingStocks[0].symbol;
