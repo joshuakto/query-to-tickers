@@ -5,10 +5,18 @@ import { prioritizeByGeography, getTickerEntityMap } from "./prioritize-by-geogr
 
 export async function extractTickers(
   query: string,
-  geography: Geography,
-  language: Language,
-  apiProvider: ApiProvider = "openrouter",
+  options: {
+    geography?: Geography;
+    language?: Language;
+    apiProvider?: ApiProvider;
+  } = {}
 ): Promise<TickerGroup[]> {
+  const {
+    geography = "us",
+    language = "english",
+    apiProvider = "openai",
+  } = options;
+
   try {
     // Step 1: Extract potential stock entities from the query
     const entities = await extractEntities(query, apiProvider)

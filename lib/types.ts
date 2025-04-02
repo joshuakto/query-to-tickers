@@ -1,6 +1,6 @@
 export type Geography = "us" | "hk" | "china" | "global"
 export type Language = "english" | "simplified-chinese" | "traditional-chinese"
-export type ApiProvider = "openrouter" | "deepseek" | "openai" | string
+export type ApiProvider = "deepseek" | "openai" | string
 
 export interface Stock {
   symbol: string

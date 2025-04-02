@@ -6,14 +6,6 @@ export const API_CONFIG = {
     model: "deepseek-chat",
   },
 
-  // OpenRouter API
-  openrouter: {
-    apiUrl: "https://openrouter.ai/api/v1/chat/completions",
-    model: "deepseek/deepseek-chat-v3-0324:free", // Updated model ID
-    referer: "https://stock-ticker-identifier.vercel.app", // Replace with your actual domain
-    title: "Stock Ticker Identifier",
-  },
-
   // OpenAI API
   openai: {
     apiUrl: "https://api.openai.com/v1/chat/completions",

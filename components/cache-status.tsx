@@ -63,51 +63,41 @@ export default function CacheStatusIndicator({ isLoading }: CacheStatusIndicator
   // Display loading state if the parent component is loading the cache
   if (isLoading) {
     return (
-      <div className="space-y-1">
-        <div className="flex items-center text-xs text-gray-500">
-          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-          <span>Loading stock data cache...</span>
-        </div>
+      <div className="flex items-center text-xs text-muted-foreground">
+        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+        <span>Loading...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs text-gray-500">
+    <div className="flex items-center gap-1">
+      {status.isCached && (
         <div className="flex items-center">
-          {status.isCached ? (
-            <>
-              {status.isMemoryOnly ? (
-                <Memory className="h-3 w-3 mr-1 text-amber-500" />
-              ) : (
-                <HardDrive className="h-3 w-3 mr-1 text-green-500" />
-              )}
-              <span>
-                {status.stockCount?.toLocaleString()} stocks cached {status.cacheAge}
-                {status.isMemoryOnly && " (memory only)"}
-              </span>
-            </>
+          {status.isMemoryOnly ? (
+            <Memory className="h-3 w-3 mr-1 text-amber-500" />
           ) : (
-            <span>No cached stock data</span>
+            <HardDrive className="h-3 w-3 mr-1 text-green-500" />
           )}
+          <span className="text-xs text-muted-foreground">
+            {status.stockCount?.toLocaleString()} stocks
+          </span>
         </div>
-        <Button variant="ghost" size="sm" className="h-6 px-2" onClick={handleRefresh} disabled={isRefreshing}>
-          {isRefreshing ? (
-            <>
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-              Refreshing...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Refresh
-            </>
-          )}
-        </Button>
-      </div>
-
-      {refreshError && <div className="text-xs text-red-500">Error refreshing: {refreshError}</div>}
+      )}
+      
+      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full" onClick={handleRefresh} disabled={isRefreshing}>
+        {isRefreshing ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <RefreshCw className="h-3 w-3" />
+        )}
+      </Button>
+      
+      {refreshError && (
+        <div className="absolute top-full right-0 text-xs text-red-500 bg-background border rounded p-1 shadow-md mt-1">
+          Error: {refreshError}
+        </div>
+      )}
     </div>
   )
 }

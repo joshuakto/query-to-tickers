@@ -14,10 +14,11 @@ export function TickerDebugView() {
   }
   
   return (
-    <div className="mt-4 border rounded-md p-4">
+    <div className="w-full mt-2 border rounded-md p-4">
       <div 
         className="flex items-center justify-between cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
+        id="debug-info"
       >
         <h3 className="font-semibold text-sm">
           Debug Information {isExpanded ? '▼' : '▶'}
@@ -36,29 +37,31 @@ export function TickerDebugView() {
               
               <div className="mt-2">
                 <p className="font-semibold">All matching tickers:</p>
-                <table className="w-full mt-1 text-left">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="p-1">Symbol</th>
-                      <th className="p-1">Exchange</th>
-                      <th className="p-1">Short Name</th>
-                      <th className="p-1">Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {info.allMatches.map((match, idx) => (
-                      <tr 
-                        key={idx} 
-                        className={ticker === match.symbol ? "bg-yellow-100" : ""}
-                      >
-                        <td className="p-1">{match.symbol}</td>
-                        <td className="p-1">{match.exchange}</td>
-                        <td className="p-1">{match.exchangeShortName}</td>
-                        <td className="p-1">{match.matchReason}</td>
+                <div className="overflow-x-auto">
+                  <table className="w-full mt-1 text-left border-collapse">
+                    <thead>
+                      <tr className="bg-muted">
+                        <th className="p-1 text-xs font-medium">Symbol</th>
+                        <th className="p-1 text-xs font-medium">Exchange</th>
+                        <th className="p-1 text-xs font-medium">Short Name</th>
+                        <th className="p-1 text-xs font-medium">Reason</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {info.allMatches.map((match, idx) => (
+                        <tr 
+                          key={idx} 
+                          className={ticker === match.symbol ? "bg-yellow-50" : idx % 2 === 0 ? "bg-muted/40" : ""}
+                        >
+                          <td className="p-1">{match.symbol}</td>
+                          <td className="p-1">{match.exchange}</td>
+                          <td className="p-1">{match.exchangeShortName}</td>
+                          <td className="p-1">{match.matchReason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           ))}

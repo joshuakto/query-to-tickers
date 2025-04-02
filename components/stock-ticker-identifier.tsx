@@ -8,26 +8,43 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { extractTickers } from "@/lib/extract-tickers"
 import { Loader2 } from "lucide-react"
 import TickerResults from "./ticker-results"
-import CacheStatusIndicator from "./cache-status"
 import type { Geography, Language, TickerGroup } from "@/lib/types"
-import { loadStocksFromCache, loadStocksWithRetry } from "@/lib/stock-cache"
-import { refreshStockData } from "@/lib/match-stock-symbols"
+import { loadStocksWithRetry } from "@/lib/stock-cache"
 import { TickerDebugView } from "@/app/components/TickerDebugView"
 
 export default function StockTickerIdentifier() {
   const [query, setQuery] = useState("")
   const [geography, setGeography] = useState<Geography>("global")
   const [language, setLanguage] = useState<Language>("english")
-  const [apiProvider, setApiProvider] = useState<string>("openrouter")
+  const [apiProvider, setApiProvider] = useState<string>("openai")
   const [results, setResults] = useState<TickerGroup[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isCacheLoaded, setIsCacheLoaded] = useState(false)
   const [isCacheLoading, setIsCacheLoading] = useState(false)
+
+  // Listen for API provider changes from the header
+  useEffect(() => {
+    // Get initial value from localStorage
+    const savedProvider = localStorage.getItem('apiProvider')
+    if (savedProvider) {
+      setApiProvider(savedProvider)
+    }
+    
+    // Listen for changes
+    const handleApiProviderChange = (event: CustomEvent<string>) => {
+      setApiProvider(event.detail)
+    }
+    
+    window.addEventListener('api-provider-changed', handleApiProviderChange as EventListener)
+    
+    return () => {
+      window.removeEventListener('api-provider-changed', handleApiProviderChange as EventListener)
+    }
+  }, [])
 
   // Check cache on initial load and refresh if needed
   useEffect(() => {
@@ -75,7 +92,11 @@ export default function StockTickerIdentifier() {
         "apiProvider:",
         apiProvider,
       )
-      const tickerGroups = await extractTickers(query, geography, language, apiProvider)
+      const tickerGroups = await extractTickers(query, {
+        geography,
+        language,
+        apiProvider,
+      })
       console.log("Extracted ticker groups:", tickerGroups)
       setResults(tickerGroups)
     } catch (err) {
@@ -95,8 +116,8 @@ export default function StockTickerIdentifier() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="query">Query</Label>
+          <div>
+            <Label htmlFor="query" className="mb-2 block">Query</Label>
             <Input
               id="query"
               placeholder="e.g., 'Find me Apple stock price' or '港股阿里巴巴上升趨勢'"
@@ -106,12 +127,12 @@ export default function StockTickerIdentifier() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="geography">Geography/Market</Label>
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
+            <div className="flex-1">
+              <Label htmlFor="geography" className="mb-2 block">Geography/Market</Label>
               <Select value={geography} onValueChange={(value) => setGeography(value as Geography)}>
-                <SelectTrigger id="geography">
-                  <SelectValue placeholder="Select geography" />
+                <SelectTrigger id="geography" className="w-full">
+                  <SelectValue placeholder="Geography" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="us">United States (NYSE, NASDAQ)</SelectItem>
@@ -122,11 +143,11 @@ export default function StockTickerIdentifier() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="language">Language</Label>
+            <div className="flex-1">
+              <Label htmlFor="language" className="mb-2 block">Language</Label>
               <Select value={language} onValueChange={(value) => setLanguage(value as Language)}>
-                <SelectTrigger id="language">
-                  <SelectValue placeholder="Select language" />
+                <SelectTrigger id="language" className="w-full">
+                  <SelectValue placeholder="Language" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="english">English</SelectItem>
@@ -137,34 +158,7 @@ export default function StockTickerIdentifier() {
             </div>
           </div>
 
-          <div className="space-y-2 mt-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="api-selection" className="text-sm font-medium">
-                LLM API Provider
-              </Label>
-              <Select value={apiProvider} onValueChange={(value) => setApiProvider(value)}>
-                <SelectTrigger id="api-provider" className="w-[180px]">
-                  <SelectValue placeholder="Select API provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="openrouter">OpenRouter (DeepSeek)</SelectItem>
-                  <SelectItem value="deepseek">DeepSeek Direct</SelectItem>
-                  <SelectItem value="openai">OpenAI (GPT-4o-mini)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <p className="text-sm text-gray-500">
-              {apiProvider === "openrouter" && "Using OpenRouter to access DeepSeek v3"}
-              {apiProvider === "deepseek" && "Using DeepSeek API directly"}
-              {apiProvider === "openai" && "Using OpenAI's GPT-4o-mini model"}
-            </p>
-          </div>
-
-          <div className="border-t pt-4">
-            <CacheStatusIndicator isLoading={isCacheLoading} />
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isLoading || isCacheLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

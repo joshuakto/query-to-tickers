@@ -1,33 +1,26 @@
 import { API_CONFIG } from "./config"
 
 // Define a type for the available API providers
-type ApiProvider = "deepseek" | "openrouter" | "openai"
+type ApiProvider = "deepseek" | "openai"
 
-// Type guard to check if the config is for OpenRouter
-function isOpenRouterConfig(config: typeof API_CONFIG[ApiProvider]): config is typeof API_CONFIG["openrouter"] {
-  return "referer" in config && "title" in config;
-}
-
-export async function callLlmApi(prompt: string, useOpenRouter = true, provider = "default") {
+export async function callLlmApi(prompt: string, provider = "openai") {
   console.log("callLlmApi called with provider:", provider)
 
   const deepseekApiKey = process.env.DEEPSEEK_API_KEY
-  const openrouterApiKey = process.env.OPENROUTER_API_KEY
   const openaiApiKey = process.env.OPENAI_API_KEY
 
   // Determine which API to use
   let apiKey;
   let configKey: ApiProvider;
 
-  if (provider === "openai" && openaiApiKey) {
+  if (provider === "deepseek" && deepseekApiKey) {
+    apiKey = deepseekApiKey;
+    configKey = "deepseek";
+    console.log("Using API: DeepSeek")
+  } else {
     apiKey = openaiApiKey;
     configKey = "openai";
     console.log("Using API: OpenAI")
-  } else {
-    const canUseOpenRouter = !!openrouterApiKey && useOpenRouter
-    apiKey = canUseOpenRouter ? openrouterApiKey : deepseekApiKey
-    configKey = canUseOpenRouter ? "openrouter" : "deepseek"
-    console.log("Using API:", canUseOpenRouter ? "OpenRouter" : "DeepSeek")
   }
 
   if (!apiKey) {
@@ -41,12 +34,6 @@ export async function callLlmApi(prompt: string, useOpenRouter = true, provider 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`,
-  }
-
-  // Add OpenRouter specific headers
-  if (configKey === "openrouter" && isOpenRouterConfig(config)) {
-    headers["HTTP-Referer"] = config.referer
-    headers["X-Title"] = config.title
   }
 
   try {

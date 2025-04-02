@@ -1,6 +1,6 @@
 import type { ExtractedEntity, ApiProvider } from "./types"
 
-export async function extractEntities(query: string, apiProvider: ApiProvider = "openrouter"): Promise<ExtractedEntity[]> {
+export async function extractEntities(query: string, apiProvider: ApiProvider = "openai"): Promise<ExtractedEntity[]> {
   try {
     console.log("Extracting entities for query:", query, "using API provider:", apiProvider)
 
