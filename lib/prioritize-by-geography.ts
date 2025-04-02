@@ -154,6 +154,16 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
   tickerToEntityMap = new Map();
   tickerDebugMap = new Map();
   
+  // Market capitalization data for exchanges
+  const marketCapRank: Record<string, number> = {
+    'NYSE': 1,
+    'NASDAQ': 2,
+    'HKEX': 3,
+    'LSE': 4,
+    'SSE': 5,
+    'SZSE': 6
+  };
+  
   // If no entities, just use geography-based selection
   if (!entities || entities.length === 0) {
     const tickers = stocks.map(stock => stock.symbol);
@@ -355,16 +365,21 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
     const preferredExchanges = GEOGRAPHY_EXCHANGES[geography];
     console.log(`Preferred exchanges for ${geography}:`, preferredExchanges);
     
-    // If geography is global, just take the first match
+    // If geography is global, sort by market capitalization
     if (geography === "global" || preferredExchanges.length === 0) {
-      const ticker = matchingStocks[0].symbol;
-      console.log(`Using first match for ${entity.name}: ${ticker} (global setting)`);
+      const sortedByMarketCap = [...matchingStocks].sort((a, b) => {
+        const aMarketCapRank = marketCapRank[a.exchangeShortName] || 0;
+        const bMarketCapRank = marketCapRank[b.exchangeShortName] || 0;
+        return aMarketCapRank - bMarketCapRank;
+      });
+      const ticker = sortedByMarketCap[0].symbol;
+      console.log(`Using market cap sorted match for ${entity.name}: ${ticker} (global setting)`);
       prioritizedTickers.push(ticker);
       tickerToEntityMap.set(ticker, entity);
       
       // Update debug info
       debugInfo.ticker = ticker;
-      debugInfo.selectionReason = `Global setting, using first match`;
+      debugInfo.selectionReason = `Global setting, sorted by market cap`;
       tickerDebugMap.set(ticker, debugInfo);
       continue;
     }

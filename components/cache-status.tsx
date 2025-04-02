@@ -79,9 +79,9 @@ export default function CacheStatusIndicator({ isLoading }: CacheStatusIndicator
           ) : (
             <HardDrive className="h-3 w-3 mr-1 text-green-500" />
           )}
-          <span className="text-xs text-muted-foreground">
+          {/* <span className="text-xs text-muted-foreground">
             {status.stockCount?.toLocaleString()} stocks
-          </span>
+          </span> */}
         </div>
       )}
       
