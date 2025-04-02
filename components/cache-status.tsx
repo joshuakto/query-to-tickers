@@ -1,0 +1,114 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Loader2, RefreshCw, HardDrive, MemoryStickIcon as Memory } from "lucide-react"
+import { refreshStockData } from "@/lib/match-stock-symbols"
+import { getCacheStatus } from "@/lib/stock-cache"
+import type { CacheStatus } from "@/lib/types"
+
+interface CacheStatusIndicatorProps {
+  isLoading?: boolean;
+}
+
+export default function CacheStatusIndicator({ isLoading }: CacheStatusIndicatorProps = {}) {
+  // Initialize with default empty values to avoid server-side rendering issues
+  const [status, setStatus] = useState<CacheStatus>({
+    isCached: false,
+    timestamp: null,
+    stockCount: null,
+    cacheAge: null,
+    isMemoryOnly: false
+  })
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
+
+  // Get cache status only on client-side
+  useEffect(() => {
+    try {
+      setStatus(getCacheStatus())
+    } catch (error) {
+      console.error("Error getting initial cache status:", error)
+    }
+  }, [])
+
+  // Periodically update cache status
+  useEffect(() => {
+    const updateStatus = () => {
+      try {
+        setStatus(getCacheStatus())
+      } catch (error) {
+        console.error("Error updating cache status:", error)
+      }
+    };
+    
+    const interval = setInterval(updateStatus, 5000); // Update every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    setRefreshError(null)
+    try {
+      await refreshStockData()
+      setStatus(getCacheStatus())
+    } catch (error) {
+      console.error("Error refreshing cache:", error)
+      setRefreshError(error instanceof Error ? error.message : "Unknown error")
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  // Display loading state if the parent component is loading the cache
+  if (isLoading) {
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center text-xs text-gray-500">
+          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+          <span>Loading stock data cache...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center">
+          {status.isCached ? (
+            <>
+              {status.isMemoryOnly ? (
+                <Memory className="h-3 w-3 mr-1 text-amber-500" />
+              ) : (
+                <HardDrive className="h-3 w-3 mr-1 text-green-500" />
+              )}
+              <span>
+                {status.stockCount?.toLocaleString()} stocks cached {status.cacheAge}
+                {status.isMemoryOnly && " (memory only)"}
+              </span>
+            </>
+          ) : (
+            <span>No cached stock data</span>
+          )}
+        </div>
+        <Button variant="ghost" size="sm" className="h-6 px-2" onClick={handleRefresh} disabled={isRefreshing}>
+          {isRefreshing ? (
+            <>
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              Refreshing...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Refresh
+            </>
+          )}
+        </Button>
+      </div>
+
+      {refreshError && <div className="text-xs text-red-500">Error refreshing: {refreshError}</div>}
+    </div>
+  )
+}
+
