@@ -1,15 +1,15 @@
-import type { ExtractedEntity } from "./types"
+import type { ExtractedEntity, ApiProvider } from "./types"
 
-export async function extractEntities(query: string, useOpenRouter = false): Promise<ExtractedEntity[]> {
+export async function extractEntities(query: string, apiProvider: ApiProvider = "openrouter"): Promise<ExtractedEntity[]> {
   try {
-    console.log("Extracting entities for query:", query, "using OpenRouter:", useOpenRouter)
+    console.log("Extracting entities for query:", query, "using API provider:", apiProvider)
 
     const response = await fetch("/api/extract-entities", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ query, useOpenRouter }),
+      body: JSON.stringify({ query, apiProvider }),
     })
 
     if (!response.ok) {

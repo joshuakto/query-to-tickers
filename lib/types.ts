@@ -1,5 +1,6 @@
 export type Geography = "us" | "hk" | "china" | "global"
 export type Language = "english" | "simplified-chinese" | "traditional-chinese"
+export type ApiProvider = "openrouter" | "deepseek" | "openai" | string
 
 export interface Stock {
   symbol: string
@@ -41,7 +42,7 @@ export interface TickerGroup {
 
 export interface ApiConfig {
   apiKey?: string
-  useOpenRouter?: boolean
+  apiProvider?: ApiProvider
 }
 
 export interface CacheStatus {

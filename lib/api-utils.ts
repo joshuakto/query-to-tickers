@@ -1,23 +1,41 @@
 import { API_CONFIG } from "./config"
 
-export async function callLlmApi(prompt: string, useOpenRouter = true) {
-  console.log("callLlmApi called with useOpenRouter:", useOpenRouter)
+// Define a type for the available API providers
+type ApiProvider = "deepseek" | "openrouter" | "openai"
+
+// Type guard to check if the config is for OpenRouter
+function isOpenRouterConfig(config: typeof API_CONFIG[ApiProvider]): config is typeof API_CONFIG["openrouter"] {
+  return "referer" in config && "title" in config;
+}
+
+export async function callLlmApi(prompt: string, useOpenRouter = true, provider = "default") {
+  console.log("callLlmApi called with provider:", provider)
 
   const deepseekApiKey = process.env.DEEPSEEK_API_KEY
   const openrouterApiKey = process.env.OPENROUTER_API_KEY
+  const openaiApiKey = process.env.OPENAI_API_KEY
 
   // Determine which API to use
-  const canUseOpenRouter = !!openrouterApiKey && useOpenRouter
-  const apiKey = canUseOpenRouter ? openrouterApiKey : deepseekApiKey
+  let apiKey;
+  let configKey: ApiProvider;
 
-  console.log("Using API:", canUseOpenRouter ? "OpenRouter" : "DeepSeek")
+  if (provider === "openai" && openaiApiKey) {
+    apiKey = openaiApiKey;
+    configKey = "openai";
+    console.log("Using API: OpenAI")
+  } else {
+    const canUseOpenRouter = !!openrouterApiKey && useOpenRouter
+    apiKey = canUseOpenRouter ? openrouterApiKey : deepseekApiKey
+    configKey = canUseOpenRouter ? "openrouter" : "deepseek"
+    console.log("Using API:", canUseOpenRouter ? "OpenRouter" : "DeepSeek")
+  }
 
   if (!apiKey) {
     console.error("No API key configured")
     throw new Error("No API key configured")
   }
 
-  const config = canUseOpenRouter ? API_CONFIG.openrouter : API_CONFIG.deepseek
+  const config = API_CONFIG[configKey]
   console.log("Using model:", config.model)
 
   const headers: Record<string, string> = {
@@ -26,7 +44,7 @@ export async function callLlmApi(prompt: string, useOpenRouter = true) {
   }
 
   // Add OpenRouter specific headers
-  if (canUseOpenRouter) {
+  if (configKey === "openrouter" && isOpenRouterConfig(config)) {
     headers["HTTP-Referer"] = config.referer
     headers["X-Title"] = config.title
   }
@@ -52,7 +70,7 @@ export async function callLlmApi(prompt: string, useOpenRouter = true) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error(`API error (${canUseOpenRouter ? "OpenRouter" : "DeepSeek"}):`, errorText)
+      console.error(`API error (${configKey}):`, errorText)
       try {
         const errorData = JSON.parse(errorText)
         console.error("Parsed error data:", errorData)

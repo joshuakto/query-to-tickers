@@ -22,7 +22,7 @@ export default function StockTickerIdentifier() {
   const [query, setQuery] = useState("")
   const [geography, setGeography] = useState<Geography>("global")
   const [language, setLanguage] = useState<Language>("english")
-  const [useOpenRouter, setUseOpenRouter] = useState(true)
+  const [apiProvider, setApiProvider] = useState<string>("openrouter")
   const [results, setResults] = useState<TickerGroup[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -72,10 +72,10 @@ export default function StockTickerIdentifier() {
         geography,
         "language:",
         language,
-        "useOpenRouter:",
-        useOpenRouter,
+        "apiProvider:",
+        apiProvider,
       )
-      const tickerGroups = await extractTickers(query, geography, language, useOpenRouter)
+      const tickerGroups = await extractTickers(query, geography, language, apiProvider)
       console.log("Extracted ticker groups:", tickerGroups)
       setResults(tickerGroups)
     } catch (err) {
@@ -140,12 +140,23 @@ export default function StockTickerIdentifier() {
           <div className="space-y-2 mt-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="api-selection" className="text-sm font-medium">
-                Use OpenRouter API
+                LLM API Provider
               </Label>
-              <Switch id="api-selection" checked={useOpenRouter} onCheckedChange={setUseOpenRouter} />
+              <Select value={apiProvider} onValueChange={(value) => setApiProvider(value)}>
+                <SelectTrigger id="api-provider" className="w-[180px]">
+                  <SelectValue placeholder="Select API provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="openrouter">OpenRouter (DeepSeek)</SelectItem>
+                  <SelectItem value="deepseek">DeepSeek Direct</SelectItem>
+                  <SelectItem value="openai">OpenAI (GPT-4o-mini)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <p className="text-sm text-gray-500">
-              {useOpenRouter ? "Using OpenRouter to access DeepSeek v3" : "Using DeepSeek API directly"}
+              {apiProvider === "openrouter" && "Using OpenRouter to access DeepSeek v3"}
+              {apiProvider === "deepseek" && "Using DeepSeek API directly"}
+              {apiProvider === "openai" && "Using OpenAI's GPT-4o-mini model"}
             </p>
           </div>
 

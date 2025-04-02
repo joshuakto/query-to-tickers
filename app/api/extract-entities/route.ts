@@ -3,26 +3,47 @@ import { callLlmApi } from "@/lib/api-utils"
 
 export async function POST(request: NextRequest) {
   try {
-    const { query, useOpenRouter } = await request.json()
-    console.log("Extract entities API called with query:", query, "useOpenRouter:", useOpenRouter)
+    const { query, apiProvider } = await request.json()
+    console.log("Extract entities API called with query:", query, "apiProvider:", apiProvider)
 
     if (!query || typeof query !== "string") {
       console.log("Invalid query parameter")
       return NextResponse.json({ error: "Invalid query parameter" }, { status: 400 })
     }
 
-    // Check which API to use based on available keys
+    // Check available API keys
     const deepseekApiKey = process.env.DEEPSEEK_API_KEY
     const openrouterApiKey = process.env.OPENROUTER_API_KEY
+    const openaiApiKey = process.env.OPENAI_API_KEY
 
-    // Default to OpenRouter if available
-    const shouldUseOpenRouter = useOpenRouter !== false && !!openrouterApiKey
-    console.log("Using OpenRouter:", shouldUseOpenRouter)
+    // Determine which provider to use
+    let provider = apiProvider || "openrouter"
 
-    if (!deepseekApiKey && !openrouterApiKey) {
-      console.log("No API keys configured")
-      return NextResponse.json({ error: "No API key configured for DeepSeek or OpenRouter" }, { status: 500 })
+    // Validate if the requested provider has an API key
+    if (provider === "openrouter" && !openrouterApiKey) {
+      console.log("OpenRouter API key not configured, falling back to DeepSeek")
+      provider = "deepseek"
     }
+    if (provider === "deepseek" && !deepseekApiKey) {
+      console.log("DeepSeek API key not configured, falling back to OpenAI")
+      provider = "openai"
+    }
+    if (provider === "openai" && !openaiApiKey) {
+      console.log("OpenAI API key not configured, falling back to OpenRouter")
+      provider = openrouterApiKey ? "openrouter" : "deepseek"
+    }
+
+    // Final check if any API key is available
+    if (
+      (provider === "openrouter" && !openrouterApiKey) ||
+      (provider === "deepseek" && !deepseekApiKey) ||
+      (provider === "openai" && !openaiApiKey)
+    ) {
+      console.log("No API keys configured for any provider")
+      return NextResponse.json({ error: "No API keys configured for any provider" }, { status: 500 })
+    }
+
+    console.log("Using API provider:", provider)
 
     const prompt = `
 Extract the text segment that should be used to query for stock ticker.
@@ -97,7 +118,7 @@ Here is the user query: ${query}
 
     try {
       console.log("Calling LLM API...")
-      const fullResponse = await callLlmApi(prompt, shouldUseOpenRouter)
+      const fullResponse = await callLlmApi(prompt, provider === "openrouter", provider === "openai" ? "openai" : "default")
       console.log("LLM API full response:", fullResponse)
 
       // Extract only the relevant part of the response

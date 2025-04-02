@@ -14,6 +14,12 @@ export const API_CONFIG = {
     title: "Stock Ticker Identifier",
   },
 
+  // OpenAI API
+  openai: {
+    apiUrl: "https://api.openai.com/v1/chat/completions",
+    model: "gpt-4o-mini",
+  },
+
   // FMP API
   fmp: {
     apiUrl: "https://financialmodelingprep.com/api/v3/stock/list",

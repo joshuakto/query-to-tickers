@@ -1,4 +1,4 @@
-import type { Geography, Language, ExtractedEntity, TickerGroup } from "./types"
+import type { Geography, Language, ExtractedEntity, TickerGroup, ApiProvider } from "./types"
 import { extractEntities } from "./extract-entities"
 import { matchStockSymbols } from "./match-stock-symbols"
 import { prioritizeByGeography, getTickerEntityMap } from "./prioritize-by-geography"
@@ -7,11 +7,11 @@ export async function extractTickers(
   query: string,
   geography: Geography,
   language: Language,
-  useOpenRouter = false,
+  apiProvider: ApiProvider = "openrouter",
 ): Promise<TickerGroup[]> {
   try {
     // Step 1: Extract potential stock entities from the query
-    const entities = await extractEntities(query, useOpenRouter)
+    const entities = await extractEntities(query, apiProvider)
 
     if (!entities.length) {
       return []
@@ -47,21 +47,6 @@ export async function extractTickers(
       
       groupedByOriginalText.get(originalText)?.push(ticker)
     }
-    
-    // Enhanced diagnostic logging only - doesn't change displayed results
-    // if (isHsbcQuery) {
-    //   console.log("HSBC diagnostic logging (these are only in debug info, not visible in results):");
-    //   // Find all HSBC stocks for debugging
-    //   const hsbcStocks = matchedStocks.filter(stock => 
-    //     stock.name.toLowerCase().includes('hsbc') || 
-    //     stock.symbol.includes('HSB') ||
-    //     stock.symbol === '0005.HK'
-    //   );
-    //   console.log(`${hsbcStocks.length} HSBC variants found in matchedStocks:`);
-    //   hsbcStocks.forEach(stock => {
-    //     console.log(`- ${stock.symbol} (${stock.exchangeShortName}): ${stock.name}`);
-    //   });
-    // }
     
     // Create ticker groups
     for (const [originalText, tickers] of groupedByOriginalText.entries()) {
