@@ -19,7 +19,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <SiteHeader />
-        <main className="container">{children}</main>
+        <main>{children}</main>
       </body>
     </html>
   )

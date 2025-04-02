@@ -383,42 +383,6 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
     
     // If geography is global, sort by market capitalization
     if (geography === "global" || preferredExchanges.length === 0) {
-      // Special handling for well-known stocks like Apple to ensure they use the primary market
-      // const primarySymbols: Record<string, string> = {
-      //   'Apple': 'AAPL',      // NYSE Apple
-      //   'Microsoft': 'MSFT',  // NASDAQ Microsoft
-      //   'Amazon': 'AMZN',     // NASDAQ Amazon
-      //   'Google': 'GOOGL',    // NASDAQ Google/Alphabet
-      //   'Meta': 'META',       // NASDAQ Meta/Facebook
-      //   'Tesla': 'TSLA',      // NASDAQ Tesla
-      //   'Alibaba': 'BABA',    // NYSE Alibaba
-      //   'Facebook': 'META'    // Meta/Facebook (for older queries)
-      // };
-      
-      // Check if this entity is a well-known stock with a preferred symbol
-      // const preferredSymbol = primarySymbols[entity.name] || 
-      //                        (entity.name.toLowerCase() === 'apple' ? 'AAPL' : null);
-      
-      // if (preferredSymbol) {
-      //   // Find if we have an exact match for the preferred symbol
-      //   const exactMatch = matchingStocks.find(s => 
-      //     s.symbol === preferredSymbol || 
-      //     s.symbol.startsWith(preferredSymbol + '.')
-      //   );
-        
-      //   if (exactMatch) {
-      //     console.log(`Using preferred symbol ${preferredSymbol} for ${entity.name}`);
-      //     const ticker = exactMatch.symbol;
-      //     prioritizedTickers.push(ticker);
-      //     tickerToEntityMap.set(ticker, entity);
-          
-      //     // Update debug info
-      //     debugInfo.ticker = ticker;
-      //     debugInfo.selectionReason = `Well-known stock with preferred symbol`;
-      //     tickerDebugMap.set(ticker, debugInfo);
-      //     continue;
-      //   }
-      // }
       
       // Calculate match scores for more consistent ordering
       const globalMatchScores = new Map<Stock, number>();
@@ -636,22 +600,6 @@ export function prioritizeByGeography(stocks: Stock[], geography: Geography, ent
         else if (stockSymbol.startsWith(normalizedName.substring(0, 2))) {
           score += 2000;
         }
-        
-        // Special cases for well-known stocks
-        // const wellKnownSymbols: Record<string, string[]> = {
-        //   'apple': ['AAPL'],
-        //   'microsoft': ['MSFT'],
-        //   'google': ['GOOGL', 'GOOG'],
-        //   'amazon': ['AMZN'],
-        //   'facebook': ['META'],
-        //   'tesla': ['TSLA'],
-        //   'alibaba': ['BABA']
-        // };
-        
-        // const wellKnownMatches = wellKnownSymbols[normalizedName] || [];
-        // if (wellKnownMatches.includes(stock.symbol)) {
-        //   score += 15000; // Give highest priority to well-known symbols
-        // }
         
         // Boost primary exchanges
         if (stock.exchangeShortName === 'NYSE' || stock.exchangeShortName === 'NASDAQ') {
